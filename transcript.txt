@@ -1,0 +1,287 @@
+# transcript.txt - expected output of: python demo_client.py --fast
+# Compare your run against this. Generated 2026-10-01, mcp 2.2.0, Python 3.12.3.
+
+
+====================================================================
+  PART 1 - Handshake: agree on a protocol version
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "raw-client",
+      "version": "0.1.0"
+    }
+  }
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "capabilities": {
+      "experimental": {},
+      "prompts": {
+        "listChanged": false
+      },
+      "resources": {
+        "listChanged": false,
+        "subscribe": false
+      },
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "protocolVersion": "2025-06-18",
+    "serverInfo": {
+      "name": "wien-demo",
+      "version": "0.1.0"
+    }
+  }
+}
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+
+    (a notification has no 'id', so no reply is expected)
+
+====================================================================
+  PART 2 - RESOURCES: static data, addressed by URI
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "resources/list"
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "resources": [
+      {
+        "description": "Effective temperatures of some well-known blackbodies.",
+        "mimeType": "application/json",
+        "name": "reference_temperatures",
+        "uri": "physics://blackbody/reference-temperatures"
+      }
+    ]
+  }
+}
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "resources/read",
+  "params": {
+    "uri": "physics://blackbody/reference-temperatures"
+  }
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "contents": [
+      {
+        "mimeType": "application/json",
+        "text": "{\"CMB\": 2.725, \"Betelgeuse\": 3600, \"Sun\": 5772, \"Sirius A\": 9940}",
+        "uri": "physics://blackbody/reference-temperatures"
+      }
+    ]
+  }
+}
+
+====================================================================
+  PART 3 - DISCOVERY: tools/list returns the JSON Schema
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/list"
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "tools": [
+      {
+        "description": "Peak emission wavelength of a blackbody (Wien's law).",
+        "inputSchema": {
+          "properties": {
+            "temperature_k": {
+              "description": "Blackbody temperature in kelvin.",
+              "exclusiveMinimum": 0,
+              "maximum": 1000000000.0,
+              "title": "Temperature K",
+              "type": "number"
+            },
+            "unit": {
+              "default": "nm",
+              "description": "Unit for the returned wavelength.",
+              "enum": [
+                "nm",
+                "um"
+              ],
+              "title": "Unit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "temperature_k"
+          ],
+          "type": "object",
+          "title": "wien_peakArguments"
+        },
+        "name": "wien_peak"
+      }
+    ]
+  }
+}
+
+====================================================================
+  PART 4 - A valid call: the Sun, 5772 K
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "wien_peak",
+    "arguments": {
+      "temperature_k": 5772,
+      "unit": "nm"
+    }
+  }
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "result": {
+    "content": [
+      {
+        "text": "{\n  \"temperature_k\": 5772.0,\n  \"peak_wavelength\": 502.0395,\n  \"unit\": \"nm\"\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false
+  }
+}
+
+====================================================================
+  PART 5 - Chaining: take Betelgeuse's 3600 K from the resource
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "wien_peak",
+    "arguments": {
+      "temperature_k": 3600,
+      "unit": "nm"
+    }
+  }
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "result": {
+    "content": [
+      {
+        "text": "{\n  \"temperature_k\": 3600.0,\n  \"peak_wavelength\": 804.9367,\n  \"unit\": \"nm\"\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false
+  }
+}
+
+====================================================================
+  PART 6 - TOOL error: schema violated. Note 'isError' INSIDE a result
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "wien_peak",
+    "arguments": {
+      "temperature_k": 5772,
+      "unit": "angstrom"
+    }
+  }
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "result": {
+    "content": [
+      {
+        "text": "Error executing tool wien_peak: 1 validation error for wien_peakArguments\nunit\n  Input should be 'nm' or 'um' [type=literal_error, input_value='angstrom', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/literal_error",
+        "type": "text"
+      }
+    ],
+    "isError": true
+  }
+}
+
+====================================================================
+  PART 7 - PROTOCOL error: no such method. Note the 'error' member
+====================================================================
+
+--> SENT
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/summon",
+  "params": {}
+}
+
+<-- RECEIVED
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "error": {
+    "code": -32601,
+    "message": "Method not found",
+    "data": "tools/summon"
+  }
+}
+
+====================================================================
+  Two failure channels:
+    result + isError:true  -> the MODEL sees it and can retry
+    error + code           -> the PROGRAMMER sees it; model never does
+====================================================================

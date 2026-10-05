@@ -1,0 +1,3 @@
+# Install with:  pip install -r requirements.txt
+mcp==2.2.0        # the MCP library, used by wien_server.py
+pydantic==2.13.5  # turns the tool's type hints into rules (installed with mcp; pinned here)
